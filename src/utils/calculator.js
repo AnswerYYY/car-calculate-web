@@ -1,4 +1,4 @@
-﻿const toSafeNumber = (value) => {
+const toSafeNumber = (value) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
 };
@@ -263,9 +263,11 @@ export const calcCashPlan = (payload) => {
   const insuranceFee = clampNonNegative(payload.insuranceFee);
   const otherFee = clampNonNegative(payload.otherFee);
   const cashExtraFee = clampNonNegative(payload.cashExtraFee);
+  const totalReliefDiscount = clampNonNegative(payload.totalReliefDiscount);
 
   const extrasTotal = purchaseTax + insuranceFee + otherFee;
-  const totalCost = carPrice + extrasTotal + cashExtraFee;
+  const grossTotalCost = carPrice + extrasTotal + cashExtraFee;
+  const totalCost = Math.max(0, grossTotalCost - totalReliefDiscount);
 
   return {
     mode: "cash",
@@ -275,6 +277,8 @@ export const calcCashPlan = (payload) => {
     otherFee,
     extrasTotal,
     cashExtraFee,
+    totalReliefDiscount,
+    grossTotalCost,
     totalCost
   };
 };
@@ -285,6 +289,7 @@ export const calcLoanPlan = (payload) => {
   const insuranceFee = clampNonNegative(payload.insuranceFee);
   const otherFee = clampNonNegative(payload.otherFee);
   const interestRebate = clampNonNegative(payload.interestRebate);
+  const totalReliefDiscount = clampNonNegative(payload.totalReliefDiscount);
 
   const rawLoanAmount = clampNonNegative(payload.loanAmount);
   const loanAmount = Math.min(rawLoanAmount, carPrice);
@@ -339,7 +344,8 @@ export const calcLoanPlan = (payload) => {
   const recommendedInterestRebate = loanAmount * 0.1;
 
   const grossTotalCost = downPayment + extrasTotal + totalRepayment;
-  const totalCost = Math.max(0, grossTotalCost - interestRebate);
+  const netTotalCost = Math.max(0, grossTotalCost - interestRebate);
+  const totalCost = Math.max(0, netTotalCost - totalReliefDiscount);
 
   const firstMonthPayment = schedule.length > 0 ? schedule[0].payment : 0;
   const lastMonthPayment = schedule.length > 0 ? schedule[schedule.length - 1].payment : 0;
@@ -364,7 +370,9 @@ export const calcLoanPlan = (payload) => {
     interestPoints,
     recommendedInterestRebate,
     interestRebate,
+    totalReliefDiscount,
     grossTotalCost,
+    netTotalCost,
     totalCost,
     schedule
   };

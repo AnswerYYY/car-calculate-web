@@ -18,7 +18,7 @@
         <article class="metric-card primary">
           <p>{{ form.activePlan === "loan" ? "贷款总成本" : "全款总成本" }}</p>
           <h2>{{ formatMoney(form.activePlan === "loan" ? comparison.loanPlan.totalCost : comparison.cashPlan.totalCost) }}</h2>
-          <span>{{ form.activePlan === "loan" ? "首付 + 税费保险杂费 + 还款总额 - 返息" : "车价 + 购置税 + 保险 + 杂费 + 其他费用" }}</span>
+          <span>{{ form.activePlan === "loan" ? "首付 + 税费保险杂费 + 还款总额 - 返息 - 减免优惠" : "车价 + 购置税 + 保险 + 杂费 + 其他费用 - 减免优惠" }}</span>
         </article>
 
         <article class="metric-card" v-if="form.activePlan === 'loan'">
@@ -68,12 +68,19 @@
           </label>
 
           <label class="field-row">
+            <span>减免优惠（仅总价）</span>
+            <div class="control">
+              <em>￥</em>
+              <input v-model.number="form.totalReliefDiscount" type="number" min="0" step="100" inputmode="decimal" />
+            </div>
+          </label>
+          <!-- <label class="field-row">
             <span>其他额外费用</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.cashExtraFee" type="number" min="0" step="100" inputmode="decimal" />
             </div>
-          </label>
+          </label> -->
 
           <label class="field-row">
             <span>保险费用</span>
@@ -217,7 +224,7 @@
           <section class="result-focus">
             <p>全款总成本</p>
             <h4>{{ formatMoney(comparison.cashPlan.totalCost) }}</h4>
-            <span>优惠后车价 + 购置税 + 保险 + 杂费 + 其他额外费用</span>
+            <span>优惠后车价 + 购置税 + 保险 + 杂费 - 减免优惠</span>
           </section>
 
           <section class="result-block">
@@ -258,7 +265,7 @@
             </article>
             <article class="kpi-item">
               <span>预计首付</span>
-              <strong>{{ formatMoney(comparison.loanPlan.downPayment) }}</strong>
+              <strong>{{ formatMoney(estimatedInitialPayment) }}</strong>
             </article>
           </div>
 
@@ -349,7 +356,8 @@
         <p>燃油车购置税 = 计税基数 x 11%，计税基数可切换是否计入现金优惠</p>
         <p>新能源购置税：2024-2025 年免征（每辆减免上限 3 万）；2026-2027 年减半征收（每辆减税上限 1.5 万）</p>
         <p>提前还款：所选月份按结清处理，当月利息记为 0，并一次性归还剩余本金</p>
-        <p>贷款总成本 = 首付 + 税费/保险/杂费 + 还款总额 - 返息金额</p>
+        <p>贷款总成本 = 首付 + 税费/保险/杂费 + 还款总额 - 返息金额 - 减免优惠</p>
+        <p>减免优惠仅在最终总成本阶段扣减，不影响购置税计税基数和税额</p>
         <p>利息点 = 贷款总利息 / 贷款本金 x 100%（用于粗略比较）</p>
         <p>年化利率（估算）= 贷款总利息 / 贷款本金 / 贷款年限 x 100%</p>
         <p>总成本差额 = 贷款总成本 - 全款总成本</p>
@@ -405,6 +413,7 @@
 
   const baseCarPrice = computed(() => normalize(form.carPrice))
   const cashDiscount = computed(() => normalize(form.cashDiscount))
+  const totalReliefDiscount = computed(() => normalize(form.totalReliefDiscount))
 
   const effectiveCarPrice = computed(() => {
     return Math.max(0, baseCarPrice.value - cashDiscount.value)
@@ -448,6 +457,7 @@
       insuranceFee: normalize(form.insuranceFee),
       otherFee: normalize(form.otherFee),
       cashExtraFee: normalize(form.cashExtraFee),
+      totalReliefDiscount: totalReliefDiscount.value,
       loanAmount: normalize(form.loanAmount),
       termValue: normalize(form.termValue),
       termUnit: form.termUnit,
@@ -461,6 +471,10 @@
 
   const loanAmountOverflow = computed(() => {
     return normalize(form.loanAmount) > effectiveCarPrice.value
+  })
+
+  const estimatedInitialPayment = computed(() => {
+    return comparison.value.loanPlan.downPayment + normalize(form.otherFee) + normalize(form.insuranceFee) + normalize(form.cashExtraFee)
   })
 
   const totalDiffText = computed(() => {
@@ -501,13 +515,13 @@
           { label: "还款总额", value: comparison.value.loanPlan.totalRepayment, color: palette[1] },
           { label: "购置税", value: autoPurchaseTax.value, color: palette[2] },
           { label: "保险", value: normalize(form.insuranceFee), color: palette[3] },
-          { label: "杂费", value: normalize(form.otherFee), color: palette[4] },
+          { label: "上牌及杂费", value: normalize(form.otherFee), color: palette[4] },
         ]
       : [
           { label: "车价", value: effectiveCarPrice.value, color: palette[0] },
           { label: "购置税", value: autoPurchaseTax.value, color: palette[1] },
           { label: "保险", value: normalize(form.insuranceFee), color: palette[2] },
-          { label: "杂费", value: normalize(form.otherFee), color: palette[3] },
+          { label: "上牌及杂费", value: normalize(form.otherFee), color: palette[3] },
           { label: "额外费用", value: normalize(form.cashExtraFee), color: palette[4] },
         ]
 
@@ -543,6 +557,7 @@
       { label: "购置税（含政策）", value: formatMoney(autoPurchaseTax.value) },
       { label: "贷款本金", value: formatMoney(loanPlan.loanAmount) },
       { label: "返息金额", value: formatMoney(loanPlan.interestRebate) },
+      { label: "减免优惠", value: formatMoney(totalReliefDiscount.value) },
       { label: "还款利息(当前方案)", value: formatMoney(loanPlan.totalInterest) },
       { label: "贷款利息", value: formatMoney(loanPlan.totalInterestWithoutEarly) },
       { label: "年利率", value: `${loanPlan.annualInterestRate.toFixed(2)}%` },
@@ -576,4 +591,3 @@
     }
   })
 </script>
-

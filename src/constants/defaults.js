@@ -1,7 +1,8 @@
-﻿export const DEFAULTS = {
+export const DEFAULTS = {
   activePlan: "loan",
   carPrice: 180000,
   cashDiscount: 8000,
+  totalReliefDiscount: 0,
   vehicleEnergyType: "fuel",
   purchaseYear: 2026,
   nevInCatalog: true,
