@@ -3,9 +3,9 @@
     <section class="hero-card" aria-label="购车方式选择">
       <div class="hero-top">
         <div class="hero-copy">
-          <p class="eyebrow">Auto Finance Lab</p>
+          <p class="eyebrow">购车成本测算</p>
           <h1>购车方案计算器</h1>
-          <p>先看关键结论，再按需展开明细，减少同屏信息负担。</p>
+          <p>用于快速估算全款与贷款购车成本，方便与门店报价对比。</p>
         </div>
 
         <div class="plan-toggle" role="tablist" aria-label="购车方式">
@@ -18,7 +18,7 @@
         <article class="metric-card primary">
           <p>{{ form.activePlan === "loan" ? "贷款总成本" : "全款总成本" }}</p>
           <h2>{{ formatMoney(form.activePlan === "loan" ? comparison.loanPlan.totalCost : comparison.cashPlan.totalCost) }}</h2>
-          <span>{{ form.activePlan === "loan" ? "含首付、税费、还款总额与返息" : "含车价、税费、保险、杂费与额外费用" }}</span>
+          <span>{{ form.activePlan === "loan" ? "首付 + 税费保险杂费 + 还款总额 - 返息" : "车价 + 购置税 + 保险 + 杂费 + 其他费用" }}</span>
         </article>
 
         <article class="metric-card" v-if="form.activePlan === 'loan'">
@@ -30,13 +30,13 @@
         <article class="metric-card" v-if="form.activePlan === 'loan'">
           <p>提前还款</p>
           <h3>{{ earlyRepaymentMonthNormalized > 0 ? `${earlyRepaymentMonthNormalized} 月` : "不提前" }}</h3>
-          <span>当前还款周期 {{ repaymentMonths }} 月</span>
+          <span>可在下方调整提前还款时间</span>
         </article>
 
         <article class="metric-card" v-else>
-          <p>购置税（11%）</p>
+          <p>{{ form.vehicleEnergyType === "nev" ? "购置税（新能源）" : "购置税（11%）" }}</p>
           <h3>{{ formatMoney(autoPurchaseTax) }}</h3>
-          <span>计税基数 {{ formatMoney(purchaseTaxBase) }}</span>
+          <span>{{ purchaseTaxPolicy.policyTag }}｜计税基数 {{ formatMoney(purchaseTaxBase) }}</span>
         </article>
       </div>
     </section>
@@ -45,7 +45,7 @@
       <article ref="inputPanelRef" class="panel input-panel">
         <header class="panel-head">
           <h3>参数输入</h3>
-          <p>先填通用参数，贷款参数仅在贷款模式展示。</p>
+          <p>请按实际报价填写，未填写项默认按 0 处理。</p>
         </header>
 
         <div class="field-group">
@@ -68,7 +68,7 @@
           </label>
 
           <label class="field-row">
-            <span>额外费用</span>
+            <span>其他额外费用</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.cashExtraFee" type="number" min="0" step="100" inputmode="decimal" />
@@ -91,23 +91,46 @@
             </div>
           </label>
 
+          <label class="field-row compact">
+            <span>能源类型</span>
+            <div class="control select-wrap">
+              <select v-model="form.vehicleEnergyType">
+                <option value="fuel">燃油/其他</option>
+                <option value="nev">新能源（纯电/插混/增程）</option>
+              </select>
+            </div>
+          </label>
+
+          <label v-if="form.vehicleEnergyType === 'nev'" class="field-row">
+            <span>购车年份（政策年度）</span>
+            <div class="control">
+              <input v-model.number="form.purchaseYear" type="number" min="2024" step="1" inputmode="numeric" />
+            </div>
+          </label>
+
+          <label v-if="form.vehicleEnergyType === 'nev'" class="switch-row">
+            <span>已纳入购置税减免目录车型</span>
+            <input v-model="form.nevInCatalog" type="checkbox" />
+          </label>
+
           <label class="switch-row">
-            <span>现金优惠叠加在购置税基数</span>
+            <span>现金优惠计入购置税计税基数</span>
             <input v-model="form.discountAffectsTax" type="checkbox" />
           </label>
 
           <article class="tax-card">
-            <p>购置税（11%）</p>
-            <small>计税基数：{{ formatMoney(purchaseTaxBase) }}</small>
+            <p>{{ form.vehicleEnergyType === "nev" ? "购置税（新能源）" : "购置税（11%）" }}</p>
+            <small>当前计税基数：{{ formatMoney(purchaseTaxBase) }}</small>
+            <small v-if="purchaseTaxPolicy.reduction > 0">减免税额：{{ formatMoney(purchaseTaxPolicy.reduction) }}</small>
             <strong>{{ formatMoney(autoPurchaseTax) }}</strong>
           </article>
         </div>
 
         <div v-if="form.activePlan === 'loan'" class="field-group">
-          <h4>贷款参数</h4>
+          <h4>贷款参数（按合同填写）</h4>
 
           <label class="field-row">
-            <span>贷款金额</span>
+            <span>贷款本金</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.loanAmount" type="number" min="0" step="1000" inputmode="decimal" />
@@ -115,7 +138,7 @@
           </label>
 
           <label class="field-row">
-            <span>返息金额</span>
+            <span>返息/贴息金额</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.interestRebate" type="number" min="0" step="100" inputmode="decimal" />
@@ -123,7 +146,7 @@
           </label>
 
           <label class="field-row compact term-row">
-            <span>还款时间</span>
+            <span>贷款期限</span>
             <div class="control term-control">
               <input v-model.number="form.termValue" class="term-value" type="number" min="1" step="1" inputmode="numeric" />
               <div class="term-unit-wrap">
@@ -139,15 +162,15 @@
             <span>还款方式</span>
             <div class="control select-wrap">
               <select v-model="form.repaymentMethod">
-                <option value="equal_principal_interest">等本等息（月供）</option>
-                <option value="equal_installment">等额本息（月供）</option>
-                <option value="equal_principal">等额本金（首月月供）</option>
+                <option value="equal_principal_interest">等本等息（每月固定）</option>
+                <option value="equal_installment">等额本息（每月固定）</option>
+                <option value="equal_principal">等额本金（逐月递减）</option>
               </select>
             </div>
           </label>
 
           <label v-if="form.repaymentMethod === 'equal_principal'" class="field-row">
-            <span>等额本金首月月供</span>
+            <span>等额本金首月月供（按合同）</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.equalPrincipalFirstPayment" type="number" min="0" step="100" inputmode="decimal" />
@@ -155,7 +178,7 @@
           </label>
 
           <label v-else class="field-row">
-            <span>{{ form.repaymentMethod === "equal_principal_interest" ? "等本等息月供金额" : "等额本息月供金额" }}</span>
+            <span>{{ form.repaymentMethod === "equal_principal_interest" ? "等本等息月供（按合同）" : "等额本息月供（按合同）" }}</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.equalInstallmentPayment" type="number" min="0" step="100" inputmode="decimal" />
@@ -163,7 +186,7 @@
           </label>
 
           <label class="field-row">
-            <span>提前还款时间（0 为不提前）</span>
+            <span>计划提前还款时间（0 表示不提前）</span>
             <div class="range-wrap">
               <input v-model.number="form.earlyRepaymentMonth" class="range-input" type="range" min="0" :max="repaymentMonths" step="1" />
               <div class="range-meta">
@@ -174,7 +197,7 @@
             </div>
           </label>
 
-          <p v-if="loanAmountOverflow" class="warn">贷款金额超过优惠后车价，系统会按优惠后车价上限计算。</p>
+          <p v-if="loanAmountOverflow" class="warn">贷款本金超过优惠后车价，已按优惠后车价上限计算。</p>
         </div>
 
         <footer class="panel-foot">
@@ -185,14 +208,16 @@
       <aside class="panel result-panel" :style="resultPanelStyle" aria-live="polite">
         <header class="panel-head">
           <h3>{{ form.activePlan === "loan" ? "贷款结果" : "全款结果" }}</h3>
-          <p>{{ form.activePlan === "loan" ? `当前还款周期：${repaymentMonths} 月` : "全款模式展示总成本与成本构成" }}</p>
+          <p>{{ form.activePlan === "loan" ? `当前按 ${repaymentMonths} 月测算，可在左侧调整。` : "展示全款总成本及费用构成。" }}</p>
         </header>
+
+        <p class="calc-disclaimer">计算结果仅供参考，具体费用请以门店报价和合同条款为准。</p>
 
         <template v-if="form.activePlan === 'cash'">
           <section class="result-focus">
             <p>全款总成本</p>
             <h4>{{ formatMoney(comparison.cashPlan.totalCost) }}</h4>
-            <span>优惠后车价 + 购置税 + 保险 + 杂费 + 额外费用</span>
+            <span>优惠后车价 + 购置税 + 保险 + 杂费 + 其他额外费用</span>
           </section>
 
           <section class="result-block">
@@ -213,9 +238,9 @@
 
         <template v-else>
           <section class="result-focus loan">
-            <p>贷款方案总成本</p>
+            <p>贷款总成本（当前参数）</p>
             <h4>{{ formatMoney(comparison.loanPlan.totalCost) }}</h4>
-            <span>相较全款 {{ formatMoney(comparison.cashPlan.totalCost) }}，{{ totalDiffText }}</span>
+            <span>对比全款 {{ formatMoney(comparison.cashPlan.totalCost) }}，{{ totalDiffText }}</span>
           </section>
 
           <div class="kpi-grid">
@@ -224,21 +249,21 @@
               <strong>{{ formatMoney(comparison.totalDifference) }}</strong>
             </article>
             <article class="kpi-item">
-              <span>总利息</span>
+              <span>贷款总利息</span>
               <strong>{{ formatMoney(comparison.loanPlan.totalInterest) }}</strong>
             </article>
             <article class="kpi-item">
-              <span>差异比例</span>
+              <span>相对全款差异</span>
               <strong>{{ diffRatio.toFixed(1) }}%</strong>
             </article>
             <article class="kpi-item">
-              <span>首付金额</span>
+              <span>预计首付</span>
               <strong>{{ formatMoney(comparison.loanPlan.downPayment) }}</strong>
             </article>
           </div>
 
           <section class="result-block">
-            <h4>全款与贷款成本对比</h4>
+            <h4>全款与贷款总成本对比</h4>
             <div class="bar-row">
               <span>全款</span>
               <div><i class="bar cash" :style="{ width: cashBar }"></i></div>
@@ -252,7 +277,7 @@
           </section>
 
           <section class="result-block">
-            <h4>贷款成本构成</h4>
+            <h4>贷款方案费用构成</h4>
             <div class="pie-layout">
               <div class="pie-chart" :style="pieData.chartStyle" aria-hidden="true"></div>
               <ul class="pie-legend">
@@ -267,34 +292,34 @@
           </section>
 
           <details class="details-block" open>
-            <summary>关键明细</summary>
+            <summary>关键明细（贷款）</summary>
             <div class="details-grid">
               <article v-for="item in summaryItems" :key="item.label" class="detail-item">
                 <span>{{ item.label }}</span>
                 <strong>{{ item.value }}</strong>
               </article>
               <article class="detail-item">
-                <span>提前还款月</span>
+                <span>提前还款月份</span>
                 <strong>{{ earlyRepaymentMonthNormalized > 0 ? `${earlyRepaymentMonthNormalized} 月` : "不提前" }}</strong>
               </article>
               <article class="detail-item">
-                <span>首月月供</span>
+                <span>首月月供（估算）</span>
                 <strong>{{ formatMoney(comparison.loanPlan.firstMonthPayment) }}</strong>
               </article>
               <article class="detail-item">
-                <span>末期月供</span>
+                <span>最后一期月供（估算）</span>
                 <strong>{{ formatMoney(comparison.loanPlan.lastMonthPayment) }}</strong>
               </article>
             </div>
           </details>
 
           <details class="details-block">
-            <summary>还款计划表</summary>
+            <summary>还款计划（估算）</summary>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>期数</th>
+                    <th>月份</th>
                     <th>月供</th>
                     <th>本金</th>
                     <th>利息</th>
@@ -318,16 +343,17 @@
     </section>
 
     <details class="formula-panel">
-      <summary>计算口径说明</summary>
+      <summary>计算说明（口径）</summary>
       <div class="formula-list">
-        <p>优惠后车价 = 裸车价 - 现金优惠（最低为 0）</p>
-        <p>购置税 = 计税基数 x 11%，计税基数可切换是否叠加现金优惠</p>
-        <p>提前还款：所选当月利息记为 0，并一次性归还剩余本金</p>
-        <p>贷款总成本 = 首付 + 税费保险杂费 + 还款总额 - 返息金额</p>
-        <p>利息点 = 贷款总利息 / 贷款本金 x 100%</p>
-        <p>年利率 = 贷款总利息 / 贷款本金 / 贷款年限 x 100%</p>
-        <p>总支付差价 = 贷款总成本 - 全款总成本</p>
-        <p>利息差价 = 贷款还款总利息</p>
+        <p>优惠后车价 = max(裸车价 - 现金优惠, 0)</p>
+        <p>燃油车购置税 = 计税基数 x 11%，计税基数可切换是否计入现金优惠</p>
+        <p>新能源购置税：2024-2025 年免征（每辆减免上限 3 万）；2026-2027 年减半征收（每辆减税上限 1.5 万）</p>
+        <p>提前还款：所选月份按结清处理，当月利息记为 0，并一次性归还剩余本金</p>
+        <p>贷款总成本 = 首付 + 税费/保险/杂费 + 还款总额 - 返息金额</p>
+        <p>利息点 = 贷款总利息 / 贷款本金 x 100%（用于粗略比较）</p>
+        <p>年化利率（估算）= 贷款总利息 / 贷款本金 / 贷款年限 x 100%</p>
+        <p>总成本差额 = 贷款总成本 - 全款总成本</p>
+        <p>贷款总利息 = 还款总额 - 贷款本金（不含返息）</p>
       </div>
     </details>
   </main>
@@ -336,7 +362,7 @@
 <script setup>
   import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue"
   import { DEFAULTS } from "./constants/defaults.js"
-  import { calcComparison, calcPurchaseTax, formatMoney, toRepaymentMonths } from "./utils/calculator.js"
+  import { calcComparison, calcPurchaseTaxWithPolicy, formatMoney, toRepaymentMonths } from "./utils/calculator.js"
 
   const form = reactive({ ...DEFAULTS })
   const inputPanelRef = ref(null)
@@ -388,8 +414,18 @@
     return form.discountAffectsTax ? effectiveCarPrice.value : baseCarPrice.value
   })
 
+  const purchaseTaxPolicy = computed(() => {
+    return calcPurchaseTaxWithPolicy({
+      basePrice: purchaseTaxBase.value,
+      rate: 0.11,
+      vehicleEnergyType: form.vehicleEnergyType,
+      purchaseYear: form.purchaseYear,
+      nevInCatalog: form.nevInCatalog,
+    })
+  })
+
   const autoPurchaseTax = computed(() => {
-    return calcPurchaseTax(purchaseTaxBase.value, 0.11)
+    return purchaseTaxPolicy.value.payableTax
   })
 
   const repaymentMonths = computed(() => {
@@ -504,7 +540,7 @@
 
     return [
       { label: "优惠后车价", value: formatMoney(effectiveCarPrice.value) },
-      { label: "购置税(11%)", value: formatMoney(autoPurchaseTax.value) },
+      { label: "购置税（含政策）", value: formatMoney(autoPurchaseTax.value) },
       { label: "贷款本金", value: formatMoney(loanPlan.loanAmount) },
       { label: "返息金额", value: formatMoney(loanPlan.interestRebate) },
       { label: "还款利息(当前方案)", value: formatMoney(loanPlan.totalInterest) },
@@ -540,3 +576,4 @@
     }
   })
 </script>
+

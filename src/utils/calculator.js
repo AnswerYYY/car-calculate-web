@@ -11,6 +11,51 @@ export const calcPurchaseTax = (basePrice, rate = 0.11) => {
   return clampNonNegative(basePrice) * clampNonNegative(rate);
 };
 
+export const calcPurchaseTaxWithPolicy = ({
+  basePrice,
+  rate = 0.11,
+  vehicleEnergyType = "fuel",
+  purchaseYear,
+  nevInCatalog = true
+}) => {
+  const taxBase = clampNonNegative(basePrice);
+  const taxRate = clampNonNegative(rate);
+  const fullTax = taxBase * taxRate;
+  const year = Math.round(toSafeNumber(purchaseYear));
+  const isNev = vehicleEnergyType === "nev";
+
+  let payableTax = fullTax;
+  let reduction = 0;
+  let policyTag = "常规计税";
+
+  if (isNev && nevInCatalog) {
+    if (year === 2024 || year === 2025) {
+      reduction = Math.min(fullTax, 30000);
+      payableTax = Math.max(0, fullTax - reduction);
+      policyTag = "2024-2025 免征（封顶3万元）";
+    } else if (year === 2026 || year === 2027) {
+      reduction = Math.min(fullTax * 0.5, 15000);
+      payableTax = Math.max(0, fullTax - reduction);
+      policyTag = "2026-2027 减半征收（减税封顶1.5万元）";
+    } else {
+      policyTag = "不在现行减免年度";
+    }
+  } else if (isNev && !nevInCatalog) {
+    policyTag = "未纳入减免目录，按常规计税";
+  }
+
+  return {
+    taxBase,
+    taxRate,
+    fullTax,
+    reduction,
+    payableTax,
+    policyTag,
+    isNev,
+    year,
+    nevInCatalog
+  };
+};
 export const toRepaymentMonths = (termValue, termUnit) => {
   const value = clampNonNegative(termValue);
   if (value === 0) {
@@ -338,5 +383,5 @@ export const calcComparison = (payload) => {
 };
 
 export const formatMoney = (value) => {
-  return "¥" + Math.round(toSafeNumber(value)).toLocaleString("zh-CN");
+  return "￥" + Math.round(toSafeNumber(value)).toLocaleString("zh-CN");
 };
