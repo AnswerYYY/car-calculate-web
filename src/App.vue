@@ -265,7 +265,7 @@
             <article class="kpi-item initial-payment">
               <span>预计首付</span>
               <strong>{{ formatMoney(estimatedInitialPayment) }}</strong>
-              <small>含车价未贷款部分、购置税、保险、上牌及杂费、额外费用</small>
+              <small>含车价未贷款部分、购置税、保险、上牌及杂费、额外费用（已扣除返息/贴息）</small>
             </article>
             <article class="kpi-item">
               <span>总支付差价</span>
@@ -572,7 +572,7 @@
   })
 
   const estimatedInitialPayment = computed(() => {
-    return comparison.value.loanPlan.downPayment + comparison.value.loanPlan.purchaseTax + normalize(form.otherFee) + normalize(form.insuranceFee) + normalize(form.cashExtraFee)
+    return comparison.value.loanPlan.downPayment + comparison.value.loanPlan.purchaseTax + normalize(form.otherFee) + normalize(form.insuranceFee) + normalize(form.cashExtraFee) - normalize(form.interestRebate)
   })
 
   const totalDiffText = computed(() => {
@@ -609,7 +609,7 @@
     const isLoan = form.activePlan === "loan"
     const segments = isLoan
       ? [
-          { label: "首付", value: comparison.value.loanPlan.downPayment, color: palette[0] },
+          { label: "车价首付", value: comparison.value.loanPlan.downPayment, color: palette[0] },
           { label: "还款总额", value: comparison.value.loanPlan.totalRepayment, color: palette[1] },
           { label: "购置税", value: autoPurchaseTax.value, color: palette[2] },
           { label: "保险", value: normalize(form.insuranceFee), color: palette[3] },
@@ -816,7 +816,5 @@
     }
   })
 </script>
-
-
 
 

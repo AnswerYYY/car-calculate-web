@@ -4,7 +4,7 @@ export const DEFAULTS = {
   cashDiscount: 8000,
   totalReliefDiscount: 0,
   vehicleEnergyType: "fuel",
-  purchaseYear: 2026,
+  purchaseYear: new Date().getFullYear(),
   nevInCatalog: true,
   discountAffectsTax: true,
   insuranceFee: 6500,
@@ -17,6 +17,5 @@ export const DEFAULTS = {
   equalInstallmentPayment: 3600,
   equalPrincipalFirstPayment: 4200,
   interestRebate: 0,
-  earlyRepaymentMonth: 0
-};
-
+  earlyRepaymentMonth: 0,
+}
