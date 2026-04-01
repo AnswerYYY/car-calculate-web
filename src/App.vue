@@ -351,10 +351,77 @@
       </aside>
     </section>
 
+    <section class="quote-vault" aria-label="报价方案收藏">
+      <header class="vault-head">
+        <div>
+          <p class="vault-eyebrow">QUOTE VAULT</p>
+          <h3>报价方案收藏</h3>
+        </div>
+        <span class="vault-count">已保存 {{ savedQuotes.length }} 条</span>
+      </header>
+
+      <div class="vault-save-row">
+        <label class="vault-name-field">
+          <span>方案名称</span>
+          <input v-model.trim="quoteDraftName" type="text" maxlength="24" placeholder="例如：A店 36期低首付" />
+        </label>
+        <button class="vault-save-btn" type="button" @click="saveCurrentQuote">保存当前报价</button>
+      </div>
+
+      <p class="vault-tip">将当前所有输入参数与测算结果一并保存到本地浏览器（localStorage）。</p>
+      <p v-if="savedQuotes.length === 0" class="vault-empty">还没有保存的方案，先保存当前报价做对比吧。</p>
+      <section v-else class="vault-ranking">
+        <article class="vault-ranking-item">
+          <span>最低总成本</span>
+          <strong>{{ quoteRankings.lowestTotalCost?.name || "-" }}</strong>
+          <em>{{ quoteRankings.lowestTotalCost ? formatMoney(quoteRankings.lowestTotalCost.totalCost) : "-" }}</em>
+        </article>
+        <article class="vault-ranking-item">
+          <span>最低预计首付（贷款）</span>
+          <strong>{{ quoteRankings.lowestInitialPayment?.name || "-" }}</strong>
+          <em>{{ quoteRankings.lowestInitialPayment ? formatMoney(quoteRankings.lowestInitialPayment.initialPayment) : "-" }}</em>
+        </article>
+        <article class="vault-ranking-item">
+          <span>最低首月月供（贷款）</span>
+          <strong>{{ quoteRankings.lowestMonthlyPayment?.name || "-" }}</strong>
+          <em>{{ quoteRankings.lowestMonthlyPayment ? formatMoney(quoteRankings.lowestMonthlyPayment.monthlyPayment) : "-" }}</em>
+        </article>
+      </section>
+
+      <ul v-if="savedQuotes.length > 0" class="vault-list">
+        <li v-for="item in savedQuotes" :key="item.id" class="vault-item">
+          <div class="vault-item-main">
+            <h4>{{ item.name }}</h4>
+            <p>{{ item.activePlan === "loan" ? "贷款方案" : "全款方案" }} · {{ item.savedAtText }}</p>
+            <div class="vault-item-kpis">
+              <span v-if="item.activePlan === 'loan'">预计首付 {{ formatMoney(item.initialPayment) }}</span>
+              <span v-if="item.activePlan === 'loan'">首月月供 {{ formatMoney(item.monthlyPayment) }}</span>
+              <span v-if="item.activePlan === 'loan'">{{ item.repaymentMonths }} 月</span>
+              <span v-else>一次性支付</span>
+            </div>
+          </div>
+
+          <div class="vault-item-metric">
+            <span>总成本</span>
+            <strong>{{ formatMoney(item.totalCost) }}</strong>
+            <small v-if="quoteRankings.totalCostRank[item.id] > 0">总成本第 {{ quoteRankings.totalCostRank[item.id] }} 名</small>
+          </div>
+
+          <div class="vault-item-actions">
+            <span v-if="quoteRankings.totalCostRank[item.id] === 1" class="vault-ribbon">总成本最低</span>
+            <span v-else-if="quoteRankings.monthlyPaymentRank[item.id] === 1" class="vault-ribbon">月供最低</span>
+            <span v-else-if="quoteRankings.initialPaymentRank[item.id] === 1" class="vault-ribbon">首付最低</span>
+            <button type="button" class="vault-btn apply" @click="applySavedQuote(item.id)">套用</button>
+            <button type="button" class="vault-btn remove" @click="removeSavedQuote(item.id)">删除</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
     <details class="formula-panel">
       <summary>计算说明</summary>
       <div class="formula-list">
-        <p>优惠后车价 = max(裸车价 - 现金优惠, 0)</p>
+        <p>优惠后车价 = 裸车价 - 现金优惠</p>
         <p>燃油车购置税 = 计税基数 x 11%，计税基数可切换是否计入现金优惠</p>
         <p>新能源购置税：2024-2025 年免征（每辆减免上限 3 万）；2026-2027 年减半征收（每辆减税上限 1.5 万）</p>
         <p>提前还款：所选月份按结清处理，当月利息记为 0，并一次性归还剩余本金</p>
@@ -375,6 +442,9 @@
   import { calcComparison, calcPurchaseTaxWithPolicy, formatMoney, toRepaymentMonths } from "./utils/calculator.js"
 
   const form = reactive({ ...DEFAULTS })
+  const SAVED_QUOTES_KEY = "carCalculator.savedQuotes.v1"
+  const quoteDraftName = ref("")
+  const savedQuotes = ref([])
   const inputPanelRef = ref(null)
   const resultPanelHeight = ref("")
   let resizeObserver = null
@@ -602,12 +672,140 @@
     ]
   })
 
+  const formatSavedTime = (timestamp) => {
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) {
+      return "未知时间"
+    }
+
+    return date.toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+  }
+
+  const persistSavedQuotes = () => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    window.localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(savedQuotes.value))
+  }
+
+  const loadSavedQuotes = () => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const raw = window.localStorage.getItem(SAVED_QUOTES_KEY)
+    if (!raw) {
+      savedQuotes.value = []
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        savedQuotes.value = []
+        return
+      }
+
+      savedQuotes.value = parsed
+        .map((item) => ({
+          id: String(item.id ?? ""),
+          name: String(item.name ?? "未命名方案"),
+          activePlan: item.activePlan === "cash" ? "cash" : "loan",
+          totalCost: normalize(item.totalCost),
+          initialPayment: normalize(item.initialPayment),
+          monthlyPayment: normalize(item.monthlyPayment),
+          repaymentMonths: Math.max(0, Math.round(normalize(item.repaymentMonths))),
+          savedAt: normalize(item.savedAt),
+          savedAtText: formatSavedTime(item.savedAt),
+          form: item.form && typeof item.form === "object" ? item.form : {},
+        }))
+        .filter((item) => item.id)
+    } catch {
+      savedQuotes.value = []
+    }
+  }
+
+  const captureCurrentForm = () => {
+    return Object.fromEntries(Object.keys(DEFAULTS).map((key) => [key, form[key]]))
+  }
+
+  const saveCurrentQuote = () => {
+    const now = Date.now()
+    const activePlan = form.activePlan === "cash" ? "cash" : "loan"
+    const fallbackName = (activePlan === "loan" ? "贷款" : "全款") + "报价 " + (savedQuotes.value.length + 1)
+
+    const snapshot = {
+      id: "quote_" + now + "_" + Math.random().toString(36).slice(2, 7),
+      name: quoteDraftName.value || fallbackName,
+      activePlan,
+      totalCost: activePlan === "loan" ? comparison.value.loanPlan.totalCost : comparison.value.cashPlan.totalCost,
+      initialPayment: activePlan === "loan" ? estimatedInitialPayment.value : 0,
+      monthlyPayment: activePlan === "loan" ? comparison.value.loanPlan.firstMonthPayment : 0,
+      repaymentMonths: activePlan === "loan" ? repaymentMonths.value : 0,
+      savedAt: now,
+      savedAtText: formatSavedTime(now),
+      form: captureCurrentForm(),
+    }
+
+    savedQuotes.value = [snapshot, ...savedQuotes.value].slice(0, 20)
+    quoteDraftName.value = ""
+    persistSavedQuotes()
+  }
+
+  const applySavedQuote = (quoteId) => {
+    const target = savedQuotes.value.find((item) => item.id === quoteId)
+    if (!target) {
+      return
+    }
+
+    Object.entries(DEFAULTS).forEach(([key, value]) => {
+      form[key] = Object.prototype.hasOwnProperty.call(target.form, key) ? target.form[key] : value
+    })
+    form.activePlan = target.activePlan
+    nextTick(syncResultPanelHeight)
+  }
+
+  const removeSavedQuote = (quoteId) => {
+    savedQuotes.value = savedQuotes.value.filter((item) => item.id !== quoteId)
+    persistSavedQuotes()
+  }
+
+
+  const quoteRankings = computed(() => {
+    const totalSorted = [...savedQuotes.value].sort((a, b) => a.totalCost - b.totalCost)
+    const totalCostRank = Object.fromEntries(totalSorted.map((item, index) => [item.id, index + 1]))
+
+    const loanItems = savedQuotes.value.filter((item) => item.activePlan === "loan")
+    const initialSorted = [...loanItems].filter((item) => item.initialPayment > 0).sort((a, b) => a.initialPayment - b.initialPayment)
+    const initialPaymentRank = Object.fromEntries(initialSorted.map((item, index) => [item.id, index + 1]))
+
+    const monthlySorted = [...loanItems].filter((item) => item.monthlyPayment > 0).sort((a, b) => a.monthlyPayment - b.monthlyPayment)
+    const monthlyPaymentRank = Object.fromEntries(monthlySorted.map((item, index) => [item.id, index + 1]))
+
+    return {
+      totalCostRank,
+      initialPaymentRank,
+      monthlyPaymentRank,
+      lowestTotalCost: totalSorted[0] || null,
+      lowestInitialPayment: initialSorted[0] || null,
+      lowestMonthlyPayment: monthlySorted[0] || null,
+    }
+  })
   const resetAll = () => {
     Object.entries(DEFAULTS).forEach(([key, value]) => {
       form[key] = value
     })
   }
   onMounted(() => {
+    loadSavedQuotes()
     nextTick(syncResultPanelHeight)
     window.addEventListener("resize", syncResultPanelHeight)
 
@@ -627,5 +825,3 @@
     }
   })
 </script>
-
-
