@@ -45,6 +45,49 @@ body {
   gap: 18px;
 }
 
+
+.top-ticker {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid #f4c99d;
+  background: linear-gradient(145deg, #fffaf3, #fff5e9);
+  box-shadow: 0 10px 24px -18px rgba(170, 96, 27, 0.45);
+}
+
+.ticker-label {
+  margin: 0;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #201108;
+  background: #ff7524;
+}
+
+.ticker-track {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-content {
+  display: inline-flex;
+  gap: 32px;
+  min-width: 100%;
+  color: #8d4a1d;
+  font-size: 0.82rem;
+  animation: ticker-marquee 28s linear infinite;
+}
+
+@keyframes ticker-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 .hero-card,
 .panel,
 .formula-panel {
@@ -692,6 +735,8 @@ input[type="number"]::-webkit-outer-spin-button {
 .result-panel {
   display: grid;
   gap: 12px;
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .calc-disclaimer {
@@ -1090,3 +1135,24 @@ tr.early {
     text-align: left;
   }
 }
+
+
+
+@media (max-width: 980px) {
+  .top-ticker {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ticker-label {
+    width: fit-content;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-content {
+    animation: none !important;
+    transform: translateX(0) !important;
+  }
+}
+

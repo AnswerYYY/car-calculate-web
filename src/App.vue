@@ -1,5 +1,15 @@
 ﻿<template>
   <main class="app-shell">
+    <section class="top-ticker" aria-label="免责声明滚动说明">
+      <p class="ticker-label">风险提示</p>
+      <div class="ticker-track" role="marquee" aria-live="off">
+        <div class="ticker-content">
+          <span>本工具结果基于您填写的参数和当前内置计算规则（含购置税政策）自动估算，仅供方案对比，不构成法律、税务或金融建议；贷款方案、利率、返息贴息、税费及提前还款条件以金融机构审批、门店报价、合同条款及当地税务机关实际执行为准。</span>
+          <span aria-hidden="true">本工具结果基于您填写的参数和当前内置计算规则（含购置税政策）自动估算，仅供方案对比，不构成法律、税务或金融建议；贷款方案、利率、返息贴息、税费及提前还款条件以金融机构审批、门店报价、合同条款及当地税务机关实际执行为准。</span>
+        </div>
+      </div>
+    </section>
+
     <section class="hero-card" aria-label="购车方式选择">
       <div class="hero-top">
         <div class="hero-copy">
@@ -219,7 +229,7 @@
           <p>{{ form.activePlan === "loan" ? `当前按 ${repaymentMonths} 月测算，可在左侧调整。` : "展示全款总成本及费用构成。" }}</p>
         </header>
 
-        <p class="calc-disclaimer">计算结果仅供参考，具体费用请以门店报价和合同条款为准。</p>
+        <p class="calc-disclaimer">结果基于当前输入与内置规则测算，仅供参考；最终费用以门店报价、合同条款、金融机构审批及当地税务机关实际征收为准。</p>
 
         <template v-if="form.activePlan === 'cash'">
           <section class="result-focus">
@@ -368,25 +378,7 @@
         <button class="vault-save-btn" type="button" @click="saveCurrentQuote">保存当前报价</button>
       </div>
 
-      <p class="vault-tip">将当前所有输入参数与测算结果一并保存到本地浏览器（localStorage）。</p>
       <p v-if="savedQuotes.length === 0" class="vault-empty">还没有保存的方案，先保存当前报价做对比吧。</p>
-      <section v-else class="vault-ranking">
-        <article class="vault-ranking-item">
-          <span>最低总成本</span>
-          <strong>{{ quoteRankings.lowestTotalCost?.name || "-" }}</strong>
-          <em>{{ quoteRankings.lowestTotalCost ? formatMoney(quoteRankings.lowestTotalCost.totalCost) : "-" }}</em>
-        </article>
-        <article class="vault-ranking-item">
-          <span>最低预计首付（贷款）</span>
-          <strong>{{ quoteRankings.lowestInitialPayment?.name || "-" }}</strong>
-          <em>{{ quoteRankings.lowestInitialPayment ? formatMoney(quoteRankings.lowestInitialPayment.initialPayment) : "-" }}</em>
-        </article>
-        <article class="vault-ranking-item">
-          <span>最低首月月供（贷款）</span>
-          <strong>{{ quoteRankings.lowestMonthlyPayment?.name || "-" }}</strong>
-          <em>{{ quoteRankings.lowestMonthlyPayment ? formatMoney(quoteRankings.lowestMonthlyPayment.monthlyPayment) : "-" }}</em>
-        </article>
-      </section>
 
       <ul v-if="savedQuotes.length > 0" class="vault-list">
         <li v-for="item in savedQuotes" :key="item.id" class="vault-item">
@@ -778,7 +770,6 @@
     persistSavedQuotes()
   }
 
-
   const quoteRankings = computed(() => {
     const totalSorted = [...savedQuotes.value].sort((a, b) => a.totalCost - b.totalCost)
     const totalCostRank = Object.fromEntries(totalSorted.map((item, index) => [item.id, index + 1]))
@@ -825,3 +816,7 @@
     }
   })
 </script>
+
+
+
+
