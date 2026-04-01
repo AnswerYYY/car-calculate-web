@@ -126,7 +126,11 @@ const buildEqualInstallmentSchedule = ({ principal, months, monthlyPayment, earl
     }
 
     const interestPart = remain * monthlyRate;
-    let principalPart = Math.max(0, pay - interestPart);
+    // Ensure principal is fully settled within the configured term.
+    const targetPayment = month === n
+      ? Math.max(pay, remain + interestPart)
+      : pay;
+    let principalPart = Math.max(0, targetPayment - interestPart);
 
     if (principalPart > remain) {
       principalPart = remain;
@@ -343,7 +347,8 @@ export const calcLoanPlan = (payload) => {
     : 0;
   const recommendedInterestRebate = loanAmount * 0.1;
 
-  const grossTotalCost = downPayment + extrasTotal + totalRepayment;
+  const initialPayment = downPayment + extrasTotal;
+  const grossTotalCost = initialPayment + totalRepayment;
   const netTotalCost = Math.max(0, grossTotalCost - interestRebate);
   const totalCost = Math.max(0, netTotalCost - totalReliefDiscount);
 
@@ -361,6 +366,7 @@ export const calcLoanPlan = (payload) => {
     otherFee,
     extrasTotal,
     repaymentMethod,
+    initialPayment,
     firstMonthPayment,
     lastMonthPayment,
     totalRepayment,

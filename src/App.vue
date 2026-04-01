@@ -18,7 +18,7 @@
         <article class="metric-card primary">
           <p>{{ form.activePlan === "loan" ? "贷款总成本" : "全款总成本" }}</p>
           <h2>{{ formatMoney(form.activePlan === "loan" ? comparison.loanPlan.totalCost : comparison.cashPlan.totalCost) }}</h2>
-          <span>{{ form.activePlan === "loan" ? "首付 + 税费保险杂费 + 还款总额 - 返息 - 减免优惠" : "车价 + 购置税 + 保险 + 杂费 + 其他费用 - 减免优惠" }}</span>
+          <span>{{ form.activePlan === "loan" ? "预计首付 + 还款总额 - 返息 - 减免优惠" : "车价 + 购置税 + 保险 + 杂费 + 其他费用 - 减免优惠" }}</span>
         </article>
 
         <article class="metric-card" v-if="form.activePlan === 'loan'">
@@ -68,7 +68,7 @@
           </label>
 
           <label class="field-row">
-            <span>减免优惠（仅总价）</span>
+            <span>减免优惠（厂补、区补、省补、国补等额外优惠）</span>
             <div class="control">
               <em>￥</em>
               <input v-model.number="form.totalReliefDiscount" type="number" min="0" step="100" inputmode="decimal" />
@@ -205,6 +205,7 @@
           </label>
 
           <p v-if="loanAmountOverflow" class="warn">贷款本金超过优惠后车价，已按优惠后车价上限计算。</p>
+          <p v-if="repaymentInputWarning" class="warn">{{ repaymentInputWarning }}</p>
         </div>
 
         <footer class="panel-foot">
@@ -251,6 +252,11 @@
           </section>
 
           <div class="kpi-grid">
+            <article class="kpi-item initial-payment">
+              <span>预计首付</span>
+              <strong>{{ formatMoney(estimatedInitialPayment) }}</strong>
+              <small>含车价未贷款部分、购置税、保险、上牌及杂费、额外费用</small>
+            </article>
             <article class="kpi-item">
               <span>总支付差价</span>
               <strong>{{ formatMoney(comparison.totalDifference) }}</strong>
@@ -262,10 +268,6 @@
             <article class="kpi-item">
               <span>相对全款差异</span>
               <strong>{{ diffRatio.toFixed(1) }}%</strong>
-            </article>
-            <article class="kpi-item">
-              <span>预计首付</span>
-              <strong>{{ formatMoney(estimatedInitialPayment) }}</strong>
             </article>
           </div>
 
@@ -350,14 +352,14 @@
     </section>
 
     <details class="formula-panel">
-      <summary>计算说明（口径）</summary>
+      <summary>计算说明</summary>
       <div class="formula-list">
         <p>优惠后车价 = max(裸车价 - 现金优惠, 0)</p>
         <p>燃油车购置税 = 计税基数 x 11%，计税基数可切换是否计入现金优惠</p>
         <p>新能源购置税：2024-2025 年免征（每辆减免上限 3 万）；2026-2027 年减半征收（每辆减税上限 1.5 万）</p>
         <p>提前还款：所选月份按结清处理，当月利息记为 0，并一次性归还剩余本金</p>
-        <p>贷款总成本 = 首付 + 税费/保险/杂费 + 还款总额 - 返息金额 - 减免优惠</p>
-        <p>减免优惠仅在最终总成本阶段扣减，不影响购置税计税基数和税额</p>
+        <p>贷款总成本 = 预计首付 + 还款总额 - 返息金额 - 减免优惠</p>
+        <p>减免优惠仅在最终总成本阶段扣减，不影响购置税计税基数和税额，适用于厂补、区补、省补、国补等额外优惠</p>
         <p>利息点 = 贷款总利息 / 贷款本金 x 100%（用于粗略比较）</p>
         <p>年化利率（估算）= 贷款总利息 / 贷款本金 / 贷款年限 x 100%</p>
         <p>总成本差额 = 贷款总成本 - 全款总成本</p>
@@ -403,6 +405,7 @@
     return {
       height: resultPanelHeight.value,
       overflowY: "auto",
+      overflowX: "hidden",
     }
   })
 
@@ -473,8 +476,41 @@
     return normalize(form.loanAmount) > effectiveCarPrice.value
   })
 
+  const normalizedLoanAmount = computed(() => {
+    return Math.min(normalize(form.loanAmount), effectiveCarPrice.value)
+  })
+
+  const minPrincipalPerMonth = computed(() => {
+    if (repaymentMonths.value <= 0) {
+      return 0
+    }
+    return normalizedLoanAmount.value / repaymentMonths.value
+  })
+
+  const repaymentInputWarning = computed(() => {
+    if (form.activePlan !== "loan" || normalizedLoanAmount.value <= 0) {
+      return ""
+    }
+
+    if (form.repaymentMethod === "equal_principal") {
+      const firstPayment = normalize(form.equalPrincipalFirstPayment)
+      if (firstPayment < minPrincipalPerMonth.value) {
+        return `等额本金首月月供低于最低可行值 ${formatMoney(minPrincipalPerMonth.value)}，系统将按可结清口径测算。`
+      }
+      return ""
+    }
+
+    const monthlyPayment = normalize(form.equalInstallmentPayment)
+    if (monthlyPayment < minPrincipalPerMonth.value) {
+      const methodLabel = form.repaymentMethod === "equal_principal_interest" ? "等本等息" : "等额本息"
+      return `${methodLabel}月供低于最低可行值 ${formatMoney(minPrincipalPerMonth.value)}，系统将按可结清口径测算。`
+    }
+
+    return ""
+  })
+
   const estimatedInitialPayment = computed(() => {
-    return comparison.value.loanPlan.downPayment + normalize(form.otherFee) + normalize(form.insuranceFee) + normalize(form.cashExtraFee)
+    return comparison.value.loanPlan.downPayment + comparison.value.loanPlan.purchaseTax + normalize(form.otherFee) + normalize(form.insuranceFee) + normalize(form.cashExtraFee)
   })
 
   const totalDiffText = computed(() => {
@@ -591,3 +627,5 @@
     }
   })
 </script>
+
+
