@@ -1156,3 +1156,10 @@ tr.early {
   }
 }
 
+
+.vault-early-tag {
+  background: rgba(63, 255, 139, 0.22);
+  color: #1a4a2c;
+  font-weight: 700;
+}
+

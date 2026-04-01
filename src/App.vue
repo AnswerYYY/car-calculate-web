@@ -205,11 +205,11 @@
           <label class="field-row">
             <span>计划提前还款时间（0 表示不提前）</span>
             <div class="range-wrap">
-              <input v-model.number="form.earlyRepaymentMonth" class="range-input" type="range" min="0" :max="repaymentMonths" step="1" />
+              <input v-model.number="form.earlyRepaymentMonth" class="range-input" type="range" min="0" :max="Math.max(0, repaymentMonths - 1)" step="1" />
               <div class="range-meta">
                 <small>0 月</small>
                 <strong>{{ earlyRepaymentMonthNormalized > 0 ? `${earlyRepaymentMonthNormalized} 月` : "不提前" }}</strong>
-                <small>{{ repaymentMonths }} 月</small>
+                <small>{{ Math.max(0, repaymentMonths - 1) }} 月</small>
               </div>
             </div>
           </label>
@@ -388,7 +388,8 @@
             <div class="vault-item-kpis">
               <span v-if="item.activePlan === 'loan'">预计首付 {{ formatMoney(item.initialPayment) }}</span>
               <span v-if="item.activePlan === 'loan'">首月月供 {{ formatMoney(item.monthlyPayment) }}</span>
-              <span v-if="item.activePlan === 'loan'">{{ item.repaymentMonths }} 月</span>
+              <span v-if="item.activePlan === 'loan'">{{ item.earlyRepaymentMonth > 0 ? item.earlyRepaymentMonth : item.repaymentMonths }} 月</span>
+              <span v-if="item.activePlan === 'loan' && item.earlyRepaymentMonth > 0" class="vault-early-tag">提前还款</span>
               <span v-else>一次性支付</span>
             </div>
           </div>
@@ -512,7 +513,7 @@
       return 0
     }
 
-    return Math.min(month, repaymentMonths.value)
+    return Math.min(month, Math.max(0, repaymentMonths.value - 1))
   })
 
   const comparison = computed(() => {
@@ -715,6 +716,7 @@
           initialPayment: normalize(item.initialPayment),
           monthlyPayment: normalize(item.monthlyPayment),
           repaymentMonths: Math.max(0, Math.round(normalize(item.repaymentMonths))),
+          earlyRepaymentMonth: Math.max(0, Math.round(normalize(item.earlyRepaymentMonth))),
           savedAt: normalize(item.savedAt),
           savedAtText: formatSavedTime(item.savedAt),
           form: item.form && typeof item.form === "object" ? item.form : {},
@@ -741,7 +743,8 @@
       totalCost: activePlan === "loan" ? comparison.value.loanPlan.totalCost : comparison.value.cashPlan.totalCost,
       initialPayment: activePlan === "loan" ? estimatedInitialPayment.value : 0,
       monthlyPayment: activePlan === "loan" ? comparison.value.loanPlan.firstMonthPayment : 0,
-      repaymentMonths: activePlan === "loan" ? repaymentMonths.value : 0,
+      repaymentMonths: activePlan === "loan" ? (earlyRepaymentMonthNormalized.value > 0 ? earlyRepaymentMonthNormalized.value : repaymentMonths.value) : 0,
+      earlyRepaymentMonth: activePlan === "loan" ? earlyRepaymentMonthNormalized.value : 0,
       savedAt: now,
       savedAtText: formatSavedTime(now),
       form: captureCurrentForm(),
@@ -816,5 +819,12 @@
     }
   })
 </script>
+
+
+
+
+
+
+
 
 
