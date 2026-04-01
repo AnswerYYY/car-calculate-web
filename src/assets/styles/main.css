@@ -108,6 +108,39 @@ body {
   padding: 16px;
 }
 
+.feedback-panel {
+  border-radius: var(--radius-lg);
+  border: 1px dashed #f0cba6;
+  background: #fff9f0;
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.feedback-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c46823;
+  font-weight: 700;
+}
+
+.feedback-panel h3 {
+  margin: 4px 0 0;
+  font-family: "Noto Serif SC", "STSong", serif;
+  color: #6f340d;
+}
+
+.feedback-panel p {
+  margin: 6px 0 0;
+  color: #7a4b1c;
+  font-size: 0.86rem;
+}
+
+.feedback-panel strong {
+  color: #b24b11;
+}
 .vault-head {
   display: flex;
   justify-content: space-between;
@@ -1162,4 +1195,5 @@ tr.early {
   color: #1a4a2c;
   font-weight: 700;
 }
+
 

@@ -411,6 +411,14 @@
       </ul>
     </section>
 
+    <section class="feedback-panel" aria-label="反馈">
+      <div>
+        <p class="feedback-eyebrow">FEEDBACK</p>
+        <h3>问题与建议反馈</h3>
+        <p>如需反馈问题或建议，请发送邮件至 <strong>1721690009@qq.com</strong></p>
+      </div>
+    </section>
+
     <details class="formula-panel">
       <summary>计算说明</summary>
       <div class="formula-list">
@@ -819,6 +827,7 @@
     }
   })
 </script>
+
 
 
 
